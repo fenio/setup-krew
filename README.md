@@ -17,14 +17,14 @@ A GitHub Action to install [krew](https://krew.sigs.k8s.io/), the kubectl plugin
 
 ```yaml
 - name: Setup Krew
-  uses: your-username/setup-krew@v1
+  uses: fenio/setup-krew@v1
 ```
 
 ### Install with Plugins
 
 ```yaml
 - name: Setup Krew
-  uses: your-username/setup-krew@v1
+  uses: fenio/setup-krew@v1
   with:
     plugins: 'ctx ns'
 ```
@@ -33,7 +33,7 @@ A GitHub Action to install [krew](https://krew.sigs.k8s.io/), the kubectl plugin
 
 ```yaml
 - name: Setup Krew
-  uses: your-username/setup-krew@v1
+  uses: fenio/setup-krew@v1
   with:
     krew-version: 'v0.4.4'
     kubectl-version: 'v1.28.0'
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Krew
-        uses: your-username/setup-krew@v1
+        uses: fenio/setup-krew@v1
         with:
           plugins: 'ctx ns'
       
@@ -91,7 +91,7 @@ jobs:
 ```yaml
 - name: Setup Krew
   id: setup-krew
-  uses: your-username/setup-krew@v1
+  uses: fenio/setup-krew@v1
   with:
     plugins: 'ctx ns'
 
@@ -106,7 +106,7 @@ jobs:
 
 ```yaml
 - name: Setup Krew with multiple plugins
-  uses: your-username/setup-krew@v1
+  uses: fenio/setup-krew@v1
   with:
     plugins: 'ctx ns tree view-allocations stern'
 ```
@@ -124,7 +124,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup Krew
-        uses: your-username/setup-krew@v1
+        uses: fenio/setup-krew@v1
         with:
           kubectl-version: ${{ matrix.kubectl-version }}
           plugins: 'ctx ns'
@@ -168,4 +168,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/your-username/setup-krew/issues).
+If you encounter any issues or have questions, please [open an issue](https://github.com/fenio/setup-krew/issues).

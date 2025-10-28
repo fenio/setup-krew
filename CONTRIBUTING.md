@@ -8,7 +8,7 @@ Thank you for your interest in contributing to setup-krew! This document provide
 
 If you find a bug or have a suggestion for improvement:
 
-1. Check if the issue already exists in the [issue tracker](https://github.com/your-username/setup-krew/issues)
+1. Check if the issue already exists in the [issue tracker](https://github.com/fenio/setup-krew/issues)
 2. If not, create a new issue with a clear title and description
 3. Include:
    - Steps to reproduce (for bugs)
