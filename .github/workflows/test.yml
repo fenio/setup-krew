@@ -1,0 +1,132 @@
+name: Test Action
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  test-basic:
+    name: Test basic installation
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Krew
+        id: setup-krew
+        uses: ./
+      
+      - name: Verify krew installation
+        run: |
+          kubectl krew version
+          kubectl krew list
+      
+      - name: Check outputs
+        run: |
+          echo "Krew version: ${{ steps.setup-krew.outputs.krew-version }}"
+          echo "Kubectl installed: ${{ steps.setup-krew.outputs.kubectl-installed }}"
+
+  test-with-plugins:
+    name: Test with plugins
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        plugins: 
+          - 'ctx'
+          - 'ctx ns'
+          - 'ctx ns tree'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Krew with plugins
+        id: setup-krew
+        uses: ./
+        with:
+          plugins: ${{ matrix.plugins }}
+      
+      - name: Verify plugins
+        run: |
+          kubectl krew list
+          echo "Plugins installed: ${{ steps.setup-krew.outputs.plugins-installed }}"
+      
+      - name: Test ctx plugin
+        if: contains(matrix.plugins, 'ctx')
+        run: kubectl ctx --help
+      
+      - name: Test ns plugin
+        if: contains(matrix.plugins, 'ns')
+        run: kubectl ns --help
+      
+      - name: Test tree plugin
+        if: contains(matrix.plugins, 'tree')
+        run: kubectl tree --help
+
+  test-versions:
+    name: Test with specific versions
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        krew-version: ['v0.4.4', 'latest']
+        kubectl-version: ['v1.28.0', 'stable']
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Krew
+        uses: ./
+        with:
+          krew-version: ${{ matrix.krew-version }}
+          kubectl-version: ${{ matrix.kubectl-version }}
+          plugins: 'ctx'
+      
+      - name: Verify installation
+        run: |
+          kubectl version --client
+          kubectl krew version
+          kubectl krew list
+
+  test-kubectl-present:
+    name: Test with kubectl pre-installed
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Pre-install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          kubectl version --client
+      
+      - name: Setup Krew
+        id: setup-krew
+        uses: ./
+        with:
+          plugins: 'ctx ns'
+      
+      - name: Verify kubectl was not installed by action
+        run: |
+          if [ "${{ steps.setup-krew.outputs.kubectl-installed }}" == "true" ]; then
+            echo "Error: kubectl should not have been installed"
+            exit 1
+          fi
+          echo "Success: kubectl was already present"
+      
+      - name: Verify krew works
+        run: |
+          kubectl krew list
+          kubectl ctx --help
+          kubectl ns --help

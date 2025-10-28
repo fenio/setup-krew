@@ -1,0 +1,168 @@
+name: 'Setup Krew'
+description: 'Install krew kubectl plugin manager and optionally install kubectl if not present'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  krew-version:
+    description: 'Version of krew to install (default: latest)'
+    required: false
+    default: 'latest'
+  kubectl-version:
+    description: 'Version of kubectl to install if not present (default: latest stable)'
+    required: false
+    default: 'stable'
+  plugins:
+    description: 'Space-separated list of krew plugins to install (e.g., "ctx ns" or "ctx")'
+    required: false
+    default: ''
+
+outputs:
+  krew-version:
+    description: 'The installed version of krew'
+    value: ${{ steps.krew-install.outputs.version }}
+  kubectl-installed:
+    description: 'Whether kubectl was installed by this action'
+    value: ${{ steps.kubectl-check.outputs.installed }}
+  plugins-installed:
+    description: 'List of plugins that were installed'
+    value: ${{ steps.install-plugins.outputs.plugins }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check if kubectl is installed
+      id: kubectl-check
+      shell: bash
+      run: |
+        if command -v kubectl &> /dev/null; then
+          echo "kubectl is already installed"
+          kubectl version --client
+          echo "installed=false" >> $GITHUB_OUTPUT
+        else
+          echo "kubectl is not installed, will install it"
+          echo "installed=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Install kubectl
+      if: steps.kubectl-check.outputs.installed == 'true'
+      shell: bash
+      run: |
+        echo "Installing kubectl..."
+        
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        
+        case $ARCH in
+          x86_64)
+            ARCH="amd64"
+            ;;
+          aarch64|arm64)
+            ARCH="arm64"
+            ;;
+        esac
+        
+        KUBECTL_VERSION="${{ inputs.kubectl-version }}"
+        if [ "$KUBECTL_VERSION" = "stable" ] || [ "$KUBECTL_VERSION" = "latest" ]; then
+          KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+        fi
+        
+        echo "Downloading kubectl ${KUBECTL_VERSION} for ${OS}/${ARCH}..."
+        curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
+        
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        
+        echo "kubectl installed successfully:"
+        kubectl version --client
+
+    - name: Install krew
+      id: krew-install
+      shell: bash
+      run: |
+        echo "Installing krew..."
+        
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        
+        case $ARCH in
+          x86_64)
+            ARCH="amd64"
+            ;;
+          aarch64|arm64)
+            ARCH="arm64"
+            ;;
+        esac
+        
+        KREW_VERSION="${{ inputs.krew-version }}"
+        
+        if [ "$KREW_VERSION" = "latest" ]; then
+          echo "Fetching latest krew version..."
+          KREW_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/krew/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+        fi
+        
+        KREW_VERSION_NO_V=${KREW_VERSION#v}
+        
+        echo "Downloading krew ${KREW_VERSION} for ${OS}/${ARCH}..."
+        cd "$(mktemp -d)"
+        curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/download/${KREW_VERSION}/krew-${OS}_${ARCH}.tar.gz"
+        tar zxvf "krew-${OS}_${ARCH}.tar.gz"
+        
+        ./krew-"${OS}_${ARCH}" install krew
+        
+        echo "version=${KREW_VERSION}" >> $GITHUB_OUTPUT
+        
+        echo "Krew installed successfully"
+        echo ""
+        echo "To use krew, add the following to your PATH:"
+        echo 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"'
+
+    - name: Add krew to PATH
+      shell: bash
+      run: |
+        echo "${KREW_ROOT:-$HOME/.krew}/bin" >> $GITHUB_PATH
+
+    - name: Verify krew installation
+      shell: bash
+      run: |
+        export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+        kubectl krew version
+        echo "Krew is ready to use!"
+
+    - name: Install krew plugins
+      id: install-plugins
+      if: inputs.plugins != ''
+      shell: bash
+      run: |
+        export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+        
+        PLUGINS="${{ inputs.plugins }}"
+        
+        if [ -z "$PLUGINS" ]; then
+          echo "No plugins specified, skipping plugin installation"
+          echo "plugins=" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        echo "Installing krew plugins: $PLUGINS"
+        
+        INSTALLED_PLUGINS=""
+        for plugin in $PLUGINS; do
+          echo "Installing plugin: $plugin"
+          kubectl krew install "$plugin"
+          
+          if [ -z "$INSTALLED_PLUGINS" ]; then
+            INSTALLED_PLUGINS="$plugin"
+          else
+            INSTALLED_PLUGINS="$INSTALLED_PLUGINS $plugin"
+          fi
+        done
+        
+        echo "plugins=$INSTALLED_PLUGINS" >> $GITHUB_OUTPUT
+        
+        echo ""
+        echo "Successfully installed plugins: $INSTALLED_PLUGINS"
+        echo ""
+        echo "Installed krew plugins:"
+        kubectl krew list
