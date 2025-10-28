@@ -26,7 +26,7 @@ A GitHub Action to install [krew](https://krew.sigs.k8s.io/), the kubectl plugin
 - name: Setup Krew
   uses: fenio/setup-krew@v1
   with:
-    plugins: 'ctx ns'
+    plugins: 'pv-mounter ctx ns'
 ```
 
 ### Specify Versions
@@ -37,7 +37,7 @@ A GitHub Action to install [krew](https://krew.sigs.k8s.io/), the kubectl plugin
   with:
     krew-version: 'v0.4.4'
     kubectl-version: 'v1.28.0'
-    plugins: 'ctx ns view-allocations'
+    plugins: 'pv-mounter ctx ns'
 ```
 
 ### Complete Workflow Example
@@ -60,10 +60,11 @@ jobs:
       - name: Setup Krew
         uses: fenio/setup-krew@v1
         with:
-          plugins: 'ctx ns'
+          plugins: 'pv-mounter ctx ns'
       
       - name: Use kubectl plugins
         run: |
+          kubectl pv-mounter
           kubectl ctx
           kubectl ns
 ```
